@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>미디어 뷰어</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0a0a;
+            --surface: #111;
+            --surface2: #181818;
+            --border: #222;
+            --text: #e8e8e8;
+            --muted: #555;
+            --accent: #3b82f6;
+            --accent-dim: rgba(59, 130, 246, 0.12);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+
+        /* ── HEADER ── */
+        .site-header {
+            padding: 48px 32px 40px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 24px;
+        }
+
+        .title-eyebrow {
+            font-family: 'Space Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 0.2em;
+            color: var(--muted);
+            text-transform: uppercase;
+            margin: 0 0 10px;
+        }
+
+        .title-main {
+            font-size: 32px;
+            font-weight: 300;
+            letter-spacing: -0.03em;
+            line-height: 1;
+            margin: 0;
+            color: #fff;
+        }
+
+        .title-main em {
+            font-style: normal;
+            color: var(--accent);
+        }
+
+        .upload-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: transparent;
+            border: 1px solid #333;
+            border-radius: 6px;
+            color: var(--text);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+        }
+
+        .upload-btn:hover {
+            border-color: var(--accent);
+            background: var(--accent-dim);
+            color: #fff;
+        }
+
+        #folderInput { display: none; }
+
+        /* ── STATS BAR ── */
+        .stats-bar {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            padding: 12px 32px;
+            border-bottom: 1px solid var(--border);
+            font-size: 12px;
+            color: var(--muted);
+            font-family: 'Space Mono', monospace;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: var(--bg);
+        }
+
+        .stats-bar span { display: flex; align-items: center; gap: 6px; }
+        .stats-bar .dot {
+            width: 6px; height: 6px; border-radius: 50%;
+            background: var(--accent); display: inline-block;
+        }
+
+        /* ── MAIN ── */
+        #main-container {
+            padding: 24px 32px;
+        }
+
+        /* ── FOLDER ── */
+        .folder-container {
+            margin-bottom: 6px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        .folder-header {
+            padding: 11px 16px;
+            background: var(--surface);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.15s;
+            user-select: none;
+        }
+
+        .folder-header:hover { background: var(--surface2); }
+        .folder-header.active { background: var(--surface2); }
+
+        .folder-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .folder-icon {
+            width: 28px; height: 28px;
+            border-radius: 6px;
+            background: var(--accent-dim);
+            border: 1px solid rgba(59,130,246,0.2);
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .folder-name {
+            font-size: 13px;
+            font-weight: 400;
+            color: #ccc;
+            transition: color 0.2s;
+        }
+
+        .folder-header.active .folder-name { color: #fff; }
+
+        .folder-count {
+            font-size: 11px;
+            color: var(--muted);
+            font-family: 'Space Mono', monospace;
+        }
+
+        .folder-arrow {
+            font-size: 10px;
+            color: var(--muted);
+            transition: transform 0.2s;
+        }
+
+        .folder-header.active .folder-arrow { transform: rotate(180deg); }
+
+        .folder-content {
+            display: none;
+            padding: 12px;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 8px;
+            background: #080808;
+            border-top: 1px solid var(--border);
+        }
+
+        /* ── CARDS ── */
+        .item-card {
+            position: relative;
+            cursor: pointer;
+            border-radius: 6px;
+            overflow: hidden;
+            background: #000;
+            border: 1px solid transparent;
+            transition: border-color 0.15s, transform 0.15s;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .item-card:hover {
+            border-color: #333;
+            transform: scale(1.02);
+        }
+
+        .item-card img,
+        .item-card video {
+            width: 100%;
+            height: 110px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .badge {
+            position: absolute;
+            top: 5px; left: 5px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 9px;
+            font-family: 'Space Mono', monospace;
+            z-index: 2;
+            color: white;
+            letter-spacing: 0.05em;
+        }
+
+        .badge-img   { background: rgba(59, 130, 246, 0.75); }
+        .badge-video { background: rgba(220, 50, 50, 0.8); }
+
+        /* ── MOBILE ── */
+        @media (max-width: 600px) {
+            .site-header {
+                padding: 28px 20px 24px;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 16px;
+            }
+            .title-main { font-size: 26px; }
+            .upload-btn { width: 100%; justify-content: center; padding: 13px 20px; font-size: 15px; }
+            #main-container { padding: 16px; }
+            .stats-bar { padding: 10px 16px; gap: 12px; }
+            .folder-content {
+                grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+                gap: 6px;
+                padding: 8px;
+            }
+            .item-card img, .item-card video { height: 90px; }
+            .modal-outer { max-width: 96vw; }
+            .modal-close { top: -38px; }
+        }
+
+        /* ── DRAG OVER ── */
+        body.drag-over::after {
+            content: '여기에 폴더를 놓으세요';
+            position: fixed;
+            inset: 0;
+            background: rgba(59, 130, 246, 0.08);
+            border: 2px dashed var(--accent);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: var(--accent);
+            font-family: 'DM Sans', sans-serif;
+            z-index: 500;
+            pointer-events: none;
+        }
+
+        /* ── EMPTY STATE ── */
+        .empty-state {
+            text-align: center;
+            padding: 80px 32px;
+            color: var(--muted);
+        }
+
+        .empty-state .big-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.3;
+        }
+
+        .empty-state p {
+            font-size: 14px;
+            margin: 0;
+            color: #444;
+        }
+
+        /* ── MODAL ── */
+        #modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.88);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(6px);
+        }
+
+        .modal-outer {
+            position: relative;
+            max-width: min(640px, 90vw);
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: -40px;
+            right: 0;
+            width: 32px; height: 32px;
+            background: none;
+            border: 1px solid #333;
+            border-radius: 50%;
+            color: #aaa;
+            font-size: 16px;
+            line-height: 1;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: border-color 0.15s, color 0.15s;
+        }
+
+        .modal-close:hover { border-color: #666; color: #fff; }
+
+        .modal-media-wrap {
+            background: #000;
+            border: 1px solid #2a2a2a;
+            border-radius: 10px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-media-wrap img,
+        .modal-media-wrap video {
+            display: block;
+            max-width: 100%;
+            max-height: 75vh;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+        }
+
+        .folder-header { -webkit-tap-highlight-color: transparent; }
+    </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="site-header">
+    <div class="title-block">
+        <p class="title-eyebrow">Local Media Browser</p>
+        <h1 class="title-main">미디어 <em>뷰어</em></h1>
+    </div>
+    <div class="upload-btn-wrap">
+        <label for="folderInput" class="upload-btn">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M2 10.5V11.5C2 12.05 2.45 12.5 3 12.5H11C11.55 12.5 12 12.05 12 11.5V10.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                <path d="M7 2.5V9M7 2.5L4.5 5M7 2.5L9.5 5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>폴더 선택</span>
+        </label>
+        <input type="file" id="folderInput" webkitdirectory directory multiple>
+    </div>
+</header>
+
+<!-- STATS -->
+<div class="stats-bar" id="stats-bar" style="display:none;">
+    <span><span class="dot"></span><span id="stat-folders">0개 폴더</span></span>
+    <span id="stat-files">0개 파일</span>
+    <span style="margin-left:auto; display:flex; align-items:center; gap:8px;">
+        <span style="font-size:11px; color:var(--muted);">썸네일</span>
+        <button onclick="changeThumbSize(-1)" style="width:24px;height:24px;background:transparent;border:1px solid #333;border-radius:4px;color:#aaa;font-size:14px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center;" title="작게">−</button>
+        <span id="thumb-size-label" style="font-size:11px;min-width:28px;text-align:center;">M</span>
+        <button onclick="changeThumbSize(+1)" style="width:24px;height:24px;background:transparent;border:1px solid #333;border-radius:4px;color:#aaa;font-size:14px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center;" title="크게">+</button>
+    </span>
+</div>
+
+<!-- CONTENT -->
+<div id="main-container">
+    <div class="empty-state">
+        <div class="big-icon">◻</div>
+        <p>폴더를 선택하면 이미지와 영상이 여기에 표시됩니다</p>
+    </div>
+</div>
+
+<!-- MODAL -->
+<div id="modal" onclick="closeModal()">
+    <div class="modal-outer" onclick="event.stopPropagation()">
+        <button class="modal-close" onclick="closeModal()">✕</button>
+        <div class="modal-media-wrap" id="modal-body"></div>
+    </div>
+</div>
+
+<script>
+    const folderInput   = document.getElementById('folderInput');
+    const mainContainer = document.getElementById('main-container');
+    const modal         = document.getElementById('modal');
+    const modalBody     = document.getElementById('modal-body');
+    const statsBar      = document.getElementById('stats-bar');
+    const isMobile      = /Mobi|Android/i.test(navigator.userAgent);
+
+    // ── folderData: { folderName: [{ file, url }] } ──
+    // url은 카드 생성 시점에 딱 한 번만 만들어 재사용
+    let folderData = {};
+
+    // 이전 세션 URL 전부 해제
+    function clearAllUrls() {
+        Object.values(folderData).forEach(items => {
+            items.forEach(item => {
+                if (item.url) URL.revokeObjectURL(item.url);
+            });
+        });
+        folderData = {};
+    }
+
+    // ── 썸네일 크기 ──
+    const THUMB_SIZES = [
+        { label: 'XS', min: 80,  h: 60  },
+        { label: 'S',  min: 110, h: 80  },
+        { label: 'M',  min: 150, h: 110 },
+        { label: 'L',  min: 200, h: 150 },
+        { label: 'XL', min: 280, h: 210 },
+    ];
+    let thumbIdx = 2;
+
+    function applyThumbSize() {
+        const s = THUMB_SIZES[thumbIdx];
+        document.getElementById('thumb-size-label').textContent = s.label;
+        document.querySelectorAll('.folder-content').forEach(fc => {
+            fc.style.gridTemplateColumns = `repeat(auto-fill, minmax(${s.min}px, 1fr))`;
+        });
+        document.querySelectorAll('.item-card img, .item-card video').forEach(el => {
+            el.style.height = s.h + 'px';
+        });
+    }
+
+    function changeThumbSize(delta) {
+        thumbIdx = Math.max(0, Math.min(THUMB_SIZES.length - 1, thumbIdx + delta));
+        applyThumbSize();
+    }
+
+    // ── 모달 상태 ──
+    let currentFolderName = null;
+    let currentFileIdx    = null;
+
+    // ── 파일 처리 ──
+    function processFiles(files) {
+        clearAllUrls();          // 기존 URL 전부 해제
+        mainContainer.innerHTML = '';
+        let totalMedia = 0;
+
+        files.forEach(file => {
+            if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) return;
+
+            let folderName = '선택한 파일';
+            if (file.webkitRelativePath) {
+                const parts = file.webkitRelativePath.split('/');
+                parts.pop();
+                folderName = parts.join(' / ') || '기본 폴더';
+            }
+            if (!folderData[folderName]) folderData[folderName] = [];
+            // url은 아직 null — 카드 렌더링 시 생성
+            folderData[folderName].push({ file, url: null });
+            totalMedia++;
+        });
+
+        const folderCount = Object.keys(folderData).length;
+
+        if (folderCount === 0) {
+            mainContainer.innerHTML = '<div class="empty-state"><div class="big-icon">◻</div><p>지원되는 이미지/영상 파일이 없습니다</p></div>';
+            statsBar.style.display = 'none';
+            return;
+        }
+
+        document.getElementById('stat-folders').textContent = `${folderCount}개 폴더`;
+        document.getElementById('stat-files').textContent   = `${totalMedia}개 미디어`;
+        statsBar.style.display = 'flex';
+
+        Object.keys(folderData).sort().forEach(name => {
+            const count     = folderData[name].length;
+            const container = document.createElement('div');
+            container.className = 'folder-container';
+            // data-folder 속성으로 이름 전달 (인라인 onclick 문자열 이스케이프 문제 회피)
+            container.innerHTML = `
+                <div class="folder-header" data-folder="${escAttr(name)}">
+                    <div class="folder-left">
+                        <div class="folder-icon">
+                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                                <path d="M1.5 4.5C1.5 3.95 1.95 3.5 2.5 3.5H5.5L6.5 4.5H11.5C12.05 4.5 12.5 4.95 12.5 5.5V10.5C12.5 11.05 12.05 11.5 11.5 11.5H2.5C1.95 11.5 1.5 11.05 1.5 10.5V4.5Z" stroke="#3b82f6" stroke-width="1.1" fill="none"/>
+                            </svg>
+                        </div>
+                        <span class="folder-name">${escText(name)}</span>
+                        <span class="folder-count">${count}</span>
+                    </div>
+                    <span class="folder-arrow">▼</span>
+                </div>
+                <div class="folder-content"></div>
+            `;
+            container.querySelector('.folder-header').addEventListener('click', function() {
+                loadAndToggle(this, name);
+            });
+            mainContainer.appendChild(container);
+        });
+    }
+
+    // HTML 속성/텍스트 이스케이프 헬퍼
+    function escAttr(s) { return s.replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+    function escText(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+    folderInput.addEventListener('change', e => {
+        processFiles(Array.from(e.target.files));
+    });
+
+    // ── 드래그 앤 드롭 ──
+    document.body.addEventListener('dragover', e => {
+        e.preventDefault();
+        document.body.classList.add('drag-over');
+    });
+
+    document.body.addEventListener('dragleave', e => {
+        if (!e.relatedTarget) document.body.classList.remove('drag-over');
+    });
+
+    document.body.addEventListener('drop', e => {
+        e.preventDefault();
+        document.body.classList.remove('drag-over');
+
+        const items    = Array.from(e.dataTransfer.items);
+        const allFiles = [];
+        let pending    = 0;
+
+        function tryProcess() { if (pending === 0) processFiles(allFiles); }
+
+        items.forEach(item => {
+            const entry = item.webkitGetAsEntry?.();
+            if (!entry) return;
+            if (entry.isFile) {
+                pending++;
+                entry.file(f => { allFiles.push(f); pending--; tryProcess(); });
+            } else if (entry.isDirectory) {
+                pending++;
+                readDir(entry, () => { pending--; tryProcess(); });
+            }
+        });
+
+        function readDir(dirEntry, done) {
+            const reader = dirEntry.createReader();
+            reader.readEntries(entries => {
+                let sub = entries.length;
+                if (sub === 0) { done(); return; }
+                entries.forEach(ent => {
+                    if (ent.isFile) {
+                        ent.file(f => {
+                            Object.defineProperty(f, 'webkitRelativePath', {
+                                value: dirEntry.fullPath.replace(/^\//, '') + '/' + f.name
+                            });
+                            allFiles.push(f);
+                            if (--sub === 0) done();
+                        });
+                    } else if (ent.isDirectory) {
+                        readDir(ent, () => { if (--sub === 0) done(); });
+                    } else {
+                        if (--sub === 0) done();
+                    }
+                });
+            });
+        }
+    });
+
+    // ── 폴더 열기/닫기 + 카드 렌더링 ──
+    function loadAndToggle(header, folderName) {
+        const content  = header.nextElementSibling;
+        const isLoaded = content.getAttribute('data-loaded') === 'true';
+        const s        = THUMB_SIZES[thumbIdx];
+
+        if (!isLoaded) {
+            const items = folderData[folderName];
+            items.forEach((item, idx) => {
+                // URL을 여기서 딱 한 번 생성하고 item.url에 저장 → 이후 재사용
+                if (!item.url) {
+                    item.url = URL.createObjectURL(item.file);
+                }
+                const card    = document.createElement('div');
+                card.className = 'item-card';
+                const isVideo = item.file.type.startsWith('video/');
+
+                if (isVideo) {
+                    const vid = document.createElement('video');
+                    vid.src          = item.url + '#t=0.5';
+                    vid.preload      = 'metadata';
+                    vid.style.height = s.h + 'px';
+                    const badge      = document.createElement('span');
+                    badge.className  = 'badge badge-video';
+                    badge.textContent = 'VIDEO';
+                    card.appendChild(badge);
+                    card.appendChild(vid);
+                } else {
+                    const img        = document.createElement('img');
+                    img.src          = item.url;
+                    img.loading      = 'lazy';
+                    img.style.height = s.h + 'px';
+                    const badge      = document.createElement('span');
+                    badge.className  = 'badge badge-img';
+                    badge.textContent = 'IMG';
+                    card.appendChild(badge);
+                    card.appendChild(img);
+                }
+
+                card.addEventListener('click', () => openModal(folderName, idx));
+                content.appendChild(card);
+            });
+            content.setAttribute('data-loaded', 'true');
+            content.style.gridTemplateColumns = `repeat(auto-fill, minmax(${s.min}px, 1fr))`;
+            content.style.display = 'grid';
+            header.classList.add('active');
+        } else {
+            const isOpening = content.style.display === 'none';
+            content.style.display = isOpening ? 'grid' : 'none';
+            isOpening ? header.classList.add('active') : header.classList.remove('active');
+        }
+    }
+
+    // ── 모달 열기 ──
+    // URL을 새로 만들지 않고 item.url 재사용
+    function openModal(folderName, fileIdx) {
+        const item    = folderData[folderName][fileIdx];
+        if (!item.url) item.url = URL.createObjectURL(item.file);
+
+        const isVideo = item.file.type.startsWith('video/');
+        _renderModal(isVideo, item.url);
+        modal.style.display  = 'flex';
+        currentFolderName    = folderName;
+        currentFileIdx       = fileIdx;
+    }
+
+    function _renderModal(isVideo, url) {
+        // 기존 비디오 정지
+        const prevVideo = modalBody.querySelector('video');
+        if (prevVideo) { prevVideo.pause(); prevVideo.removeAttribute('src'); prevVideo.load(); }
+
+        if (isVideo) {
+            const vid    = document.createElement('video');
+            vid.src      = url;
+            vid.controls = true;
+            vid.autoplay = true;
+            modalBody.innerHTML = '';
+            modalBody.appendChild(vid);
+        } else {
+            const img = document.createElement('img');
+            img.src   = url;
+            img.alt   = '';
+            modalBody.innerHTML = '';
+            modalBody.appendChild(img);
+        }
+    }
+
+    function goAdjacentFolder(delta) {
+        if (currentFolderName === null) return;
+        const names  = Object.keys(folderData).sort();
+        const curIdx = names.indexOf(currentFolderName);
+        const nxtIdx = curIdx + delta;
+        if (nxtIdx < 0 || nxtIdx >= names.length) {
+            showSeekToast(delta > 0 ? '마지막 폴더' : '첫번째 폴더');
+            return;
+        }
+        const nextFolder = names[nxtIdx];
+        const items      = folderData[nextFolder];
+        if (!items || items.length === 0) return;
+        currentFolderName = nextFolder;
+        currentFileIdx    = 0;
+        const item        = items[0];
+        if (!item.url) item.url = URL.createObjectURL(item.file);
+        _renderModal(item.file.type.startsWith('video/'), item.url);
+        showSeekToast(`📁 ${nextFolder}`);
+    }
+
+    function goNextInFolder(delta = +1) {
+        if (currentFolderName === null) return;
+        const items = folderData[currentFolderName];
+        if (!items || items.length === 0) return;
+        currentFileIdx    = (currentFileIdx + delta + items.length) % items.length;
+        const item        = items[currentFileIdx];
+        if (!item.url) item.url = URL.createObjectURL(item.file);
+        _renderModal(item.file.type.startsWith('video/'), item.url);
+        showSeekToast(`${currentFileIdx + 1} / ${items.length}`);
+    }
+
+    function closeModal() {
+        const video = modalBody.querySelector('video');
+        if (video) { video.pause(); video.removeAttribute('src'); video.load(); }
+        modalBody.innerHTML  = '';
+        modal.style.display  = 'none';
+        currentFolderName    = null;
+        currentFileIdx       = null;
+    }
+
+    // ── 키보드 단축키 ──
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') { closeModal(); return; }
+        if (modal.style.display !== 'flex') return;
+
+        if (e.key === 'e' || e.key === 'E') { e.preventDefault(); goNextInFolder(+1);  return; }
+        if (e.key === 'q' || e.key === 'Q') { e.preventDefault(); goNextInFolder(-1);  return; }
+        if (e.key === 'f' || e.key === 'F') { e.preventDefault(); goAdjacentFolder(+1); return; }
+        if (e.key === 'r' || e.key === 'R') { e.preventDefault(); goAdjacentFolder(-1); return; }
+
+        const video = modalBody.querySelector('video');
+        if (e.key === 'd' || e.key === 'D') { e.preventDefault(); if (video) { video.currentTime = Math.min(video.currentTime + 1, video.duration); showSeekToast('+1초'); } }
+        else if (e.key === 'a' || e.key === 'A') { e.preventDefault(); if (video) { video.currentTime = Math.max(video.currentTime - 1, 0); showSeekToast('-1초'); } }
+        else if (e.key === 'w' || e.key === 'W') { e.preventDefault(); if (video) { video.currentTime = Math.min(video.currentTime + 5, video.duration); showSeekToast('+5초'); } }
+        else if (e.key === 's' || e.key === 'S') { e.preventDefault(); if (video) { video.currentTime = Math.max(video.currentTime - 5, 0); showSeekToast('-5초'); } }
+        else if (e.key === ' ')                  { e.preventDefault(); if (video) video.paused ? video.play() : video.pause(); }
+    });
+
+    // ── 토스트 ──
+    let toastTimer;
+    function showSeekToast(text) {
+        let toast = document.getElementById('seek-toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'seek-toast';
+            toast.style.cssText = `
+                position:fixed; bottom:40px; left:50%; transform:translateX(-50%);
+                background:rgba(255,255,255,0.12); backdrop-filter:blur(8px);
+                color:#fff; font-family:'Space Mono',monospace; font-size:13px;
+                padding:7px 16px; border-radius:20px; border:1px solid rgba(255,255,255,0.15);
+                z-index:2000; pointer-events:none; transition:opacity 0.2s;
+            `;
+            document.body.appendChild(toast);
+        }
+        toast.textContent  = text;
+        toast.style.opacity = '1';
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => { toast.style.opacity = '0'; }, 800);
+    }
+</script>
+</body>
+</html>
